@@ -63,19 +63,36 @@ class TestrailUtil(object):
         self.plan = None
         self.tests = self.testrail.tests(self.run)
 
-    def add_test_result(self, test_title, test_status, comment=""):
+    def add_test_result_by_title(self, test_title, test_status, comment=""):
         if not self.plan and not self.run:
             raise ValueError("You must set test plan or test run before adding test result.")
         match_tests = filter(lambda x: x.title == test_title, self.tests)
         if len(match_tests) > 1:
             raise ValueError("Test title '{}' matches multiple tests.".format(test_title))
         elif len(match_tests) == 1:
-            test = match_tests[0]
-            status = self.testrail.status(test_status)
-            result = self.testrail.result()
-            result.test = test
-            result.status = status
-            result.comment = comment
-            self.testrail.add(result)
+            self._add_result(match_tests[0], test_status, comment)
             return True, None
         return False, "Unable to find test with title '{}'".format(test_title)
+
+    def add_test_result_by_id(self, test_id, test_status, comment=""):
+        if not self.plan and not self.run:
+            raise ValueError("You must set test plan or test run before adding test result.")
+        # match_tests = filter(lambda x: x.case.id == test_id, self.tests)  # There is BUG !!!
+        if isinstance(test_id, str):
+            if test_id.startswith("C") or test_id.startswith("c"):
+                test_id = int(test_id[1:])
+        match_tests = filter(lambda x: x._content.get("case_id") == test_id, self.tests)
+        if len(match_tests) > 1:
+            raise ValueError("Test id '{}' matches multiple tests.".format(test_id))
+        elif len(match_tests) == 1:
+            self._add_result(match_tests[0], test_status, comment)
+            return True, None
+        return False, "Unable to find test with id '{}'".format(test_id)
+
+    def _add_result(self, test, test_status, comment):
+        status = self.testrail.status(test_status)
+        result = self.testrail.result()
+        result.test = test
+        result.status = status
+        result.comment = comment
+        self.testrail.add(result)
