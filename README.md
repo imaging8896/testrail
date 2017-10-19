@@ -1,6 +1,20 @@
 # pytest testrail reporter plugin
 Report including fixture error on Setup and Teardown
 
+Auto create test run under test plan specified on xxx.cfg
+
+Test run name example `2017-10-18 17:45:59 trigger by jenkins`
+
+Failure type will be comment on result comment, here are failure types :
+
+```
+Both setup and teardown are failed
+Setup failed
+Both test and teardown are failed
+Test failed
+Teardown failed
+```
+
 # Installation
 `pip install pytest-testrail-reporter`
 
