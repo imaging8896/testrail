@@ -36,7 +36,6 @@ def pytest_addoption(parser):
 
 @pytest.hookimpl(trylast=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    print("[Runtest Hook] pytest_runtest_makereport '{}'".format(item.name))
     test_name = item.name.split("[")[0]
 
     case_id = get_testrail_case_id(item)
