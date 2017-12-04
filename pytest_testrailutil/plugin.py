@@ -96,7 +96,7 @@ def testrail_results(request, testrail_client):
                     else:
                         client.add_test_result(run, case_id, "failed", "Test failed")
                 else:
-                    if not result["teardown"]:
+                    if "teardown" in result and not result["teardown"]:
                         client.add_test_result(run, case_id, "failed", "Teardown failed")
                     else:
                         client.add_test_result(run, case_id, "passed", "Auto report")
