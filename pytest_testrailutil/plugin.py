@@ -19,35 +19,49 @@ def pytest_addoption(parser):
     )
 
 
-# @pytest.fixture(scope="session", autouse=True)
-# def before_after_all(request):
-#     print("[Hook] Before all.")
-#     yield
-#     print("[Hook] After all.")
-#
-#
-# @pytest.fixture(scope="function", autouse=True)
-# def before_after_function(request):
-#     print("\n[Hook] Before function")
-#     print("[Log]")
-#     yield
-#     print("[Hook] After function.")
+testrail_client = None
+testrail_run = None
 
 
 @pytest.hookimpl(trylast=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    test_name = item.name.split("[")[0]
+    global testrail_client, testrail_run
 
     case_id = get_testrail_case_id(item)
     outcome = yield
     rep = outcome.get_result()
-    if case_id:
-        testrail_results = item.funcargs["testrail_results"]
-        testrail_results_add(testrail_results, case_id, test_name, rep.when, rep.passed)
+    if testrail_client and testrail_run:
+        if case_id:
+            if rep.when == "setup":
+                if rep.outcome == "skipped":
+                    testrail_client.add_test_result(testrail_run, case_id, "blocked", str(call.excinfo.value))
+                elif rep.outcome == "passed":
+                    pass
+                elif rep.outcome == "failed":
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Setup failed")
+                else:
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
+            elif rep.when == "call":
+                if rep.outcome == "passed":
+                    testrail_client.add_test_result(testrail_run, case_id, "passed", "Test passed by automation")
+                elif rep.outcome == "failed":
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Test failed")
+                else:
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
+            elif rep.when == "teardown":
+                if rep.outcome == "passed":
+                    pass
+                elif rep.outcome == "failed":
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Teardown failed")
+                else:
+                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
+            else:
+                testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown test stage '{}'".format(rep.when))
 
 
 @pytest.fixture(scope="session", autouse=True)
-def testrail_client(request):
+def testrail_client_init(request):
+    global testrail_client, testrail_run
     conf_file = request.config.getoption("--testrail", default=None, skip=True)
     if conf_file:
         cfg_file = read_config_file(conf_file)
@@ -68,51 +82,8 @@ def testrail_client(request):
         cur_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         entry_name = "{} trigger by {}".format(cur_time, user)
         run = client.add_plan_entry(plan_name, entry_name, suite_name, description)
-        return {"client": client, "run": run}
-    else:
-        return None
-
-
-@pytest.fixture(scope="session", autouse=True)
-def testrail_results(request, testrail_client):
-    print("[Testrail] All results prepare")
-    results = {}
-    yield results
-    print("[Testrail] All results '{}'".format(results))
-    if testrail_client:
-        client = testrail_client["client"]
-        run = testrail_client["run"]
-        for case_id, result in results.iteritems():
-            print("[Testrail] Report test '{}' with case id {}".format(result["name"], case_id))
-            if not result["setup"]:
-                if not result["teardown"]:
-                    client.add_test_result(run, case_id, "failed", "Both setup and teardown are failed")
-                else:
-                    client.add_test_result(run, case_id, "failed", "Setup failed")
-            else:
-                if not result["call"]:
-                    if not result["teardown"]:
-                        client.add_test_result(run, case_id, "failed", "Both test and teardown are failed")
-                    else:
-                        client.add_test_result(run, case_id, "failed", "Test failed")
-                else:
-                    if "teardown" in result and not result["teardown"]:
-                        client.add_test_result(run, case_id, "failed", "Teardown failed")
-                    else:
-                        client.add_test_result(run, case_id, "passed", "Auto report")
-
-
-def testrail_results_add(testrail_results, case_id, test_name, when, result):
-    if case_id not in testrail_results:
-        testrail_results[case_id] = {
-            "name": test_name,
-            when: result
-        }
-    else:
-        if when not in testrail_results[case_id]:
-            testrail_results[case_id][when] = result
-        else:
-            testrail_results[case_id][when] = (testrail_results[case_id][when] and result)
+        testrail_client = client
+        testrail_run = run
 
 
 def get_testrail_case_id(node):

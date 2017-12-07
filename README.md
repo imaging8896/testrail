@@ -35,6 +35,13 @@ Example:
 @pytest.mark.testrail("C31877")
     def test_setup_failed(f_a):
         assert True
+
+
+# Report as 'Blocked' with comment you specify(reason) in mark
+@pytest.mark.testrail("C31877")
+@pytest.mark.skip(reason="skippppppppppp~")
+    def test_skipped(f_a):
+        assert True
 ```
 
 ## Execute command
@@ -61,4 +68,7 @@ suite=suite1
 2. Set test case ids in tests/test_testrail.py
 3. Run command below on project root dir:
 
-`pytest tests`
+```
+sudo pip uninstall pytest-testrail-reporter
+pytest tests
+```

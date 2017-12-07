@@ -3,7 +3,7 @@ import os
 from os.path import join as path_join
 from os.path import abspath, dirname
 
-pytest_plugins = ["pytester", "pytest_testrailutil.plugin"]
+pytest_plugins = ["pytester"]
 proj_root = abspath(path_join(dirname(__file__), os.pardir))
 
 
