@@ -19,50 +19,48 @@ def pytest_addoption(parser):
     )
 
 
-testrail_client = None
-testrail_run = None
+test_results = {}
 
 
-@pytest.hookimpl(trylast=True, hookwrapper=True)
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    global testrail_client, testrail_run
+    global test_results
 
     case_id = get_testrail_case_id(item)
     outcome = yield
     rep = outcome.get_result()
-    if testrail_client and testrail_run:
-        if case_id:
-            if rep.when == "setup":
-                if rep.outcome == "skipped":
-                    testrail_client.add_test_result(testrail_run, case_id, "blocked", str(call.excinfo.value))
-                elif rep.outcome == "passed":
-                    pass
-                elif rep.outcome == "failed":
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Setup failed")
-                else:
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
-            elif rep.when == "call":
-                if rep.outcome == "passed":
-                    testrail_client.add_test_result(testrail_run, case_id, "passed", "Test passed by automation")
-                elif rep.outcome == "failed":
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Test failed")
-                else:
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
-            elif rep.when == "teardown":
-                if rep.outcome == "passed":
-                    pass
-                elif rep.outcome == "failed":
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Teardown failed")
-                else:
-                    testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown outcome '{}'".format(rep.outcome))
-            else:
-                testrail_client.add_test_result(testrail_run, case_id, "failed", "Unknown test stage '{}'".format(rep.when))
+    prefix = "[{}][{}][{}] ".format(item.nodeid, rep.when, rep.outcome)
+    if rep.outcome == "skipped":
+        status = "blocked"
+        comment = prefix + str(call.excinfo.value)
+    elif rep.outcome == "passed":
+        status = "passed"
+        comment = prefix
+    elif rep.outcome == "failed":
+        status = "failed"
+        comment = prefix
+    else:
+        status = "failed"
+        comment = prefix + "Unknown outcome"
+
+    if case_id:
+        if case_id not in test_results:
+            test_results[case_id] = {"result": "passed", "comment": []}
+
+        if test_results[case_id]["result"] == "passed":
+            test_results[case_id]["result"] = status
+        elif test_results[case_id]["result"] == "skipped":
+            if status != "passed":
+                test_results[case_id]["result"] = status
+        test_results[case_id]["comment"] += [comment]
 
 
 @pytest.fixture(scope="session", autouse=True)
 def testrail_client_init(request):
-    global testrail_client, testrail_run
+    global test_results
     conf_file = request.config.getoption("--testrail", default=None, skip=True)
+    testrail_client = None
+    testrail_run = None
     if conf_file:
         cfg_file = read_config_file(conf_file)
 
@@ -84,6 +82,10 @@ def testrail_client_init(request):
         run = client.add_plan_entry(plan_name, entry_name, suite_name, description)
         testrail_client = client
         testrail_run = run
+    yield
+    if testrail_client and testrail_run:
+        for case_id, result in test_results.iteritems():
+            testrail_client.add_test_result(testrail_run, case_id, result["result"], "\n".join(result["comment"]))
 
 
 def get_testrail_case_id(node):
