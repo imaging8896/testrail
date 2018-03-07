@@ -19,15 +19,6 @@ Teardown failed
 `pip install pytest-testrail-reporter`
 
 # Usage
-## Load plugin
-Put the following into conftest.py
-
-`pytest_plugins = ["testrail"]`
-
-or
-
-`pytest -p testrail ...`
-
 ## Mark test as report target
 Example:
 
