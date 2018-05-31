@@ -56,6 +56,9 @@ class Client(TestRail):
         status = self.status(test_status)
         result = self.result()
         result.test = test
+        if status is None:
+            status = self.status("failed")
+            comment += "\n Unknown status '{}'".format(test_status)
         result.status = status
         result.comment = comment
         self.add(result)

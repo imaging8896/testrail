@@ -29,7 +29,10 @@ def pytest_runtest_makereport(item, call):
     case_id = get_testrail_case_id(item)
     outcome = yield
     rep = outcome.get_result()
-    prefix = "[{}][{}][{}] ".format(item.nodeid, rep.when, rep.outcome)
+    prefix = "[{}][{}][{}] ".format(rep.when, rep.outcome, item.nodeid)
+
+    # Priority error > blocked ~ failed > passed
+
     if rep.outcome == "skipped":
         status = "blocked"
         comment = prefix + str(call.excinfo.value)
@@ -37,11 +40,14 @@ def pytest_runtest_makereport(item, call):
         status = "passed"
         comment = prefix
     elif rep.outcome == "failed":
-        status = "failed"
+        if rep.when == "call":
+            status = "failed"
+        else:
+            status = "error"
         comment = prefix
     else:
-        status = "failed"
-        comment = prefix + "Unknown outcome"
+        status = "error"
+        comment = prefix + "Unknown outcome '{}'".format(rep.outcome)
 
     if case_id:
         if case_id not in test_results:
@@ -51,6 +57,9 @@ def pytest_runtest_makereport(item, call):
             test_results[case_id]["result"] = status
         elif test_results[case_id]["result"] == "skipped":
             if status != "passed":
+                test_results[case_id]["result"] = status
+        elif test_results[case_id]["result"] == "failed":
+            if status != "passed" and status != "skipped":
                 test_results[case_id]["result"] = status
         test_results[case_id]["comment"] += [comment]
 
