@@ -60,6 +60,6 @@ suite=suite1
 3. Run command below on project root dir:
 
 ```
-sudo pip uninstall pytest-testrail-reporter
+pip install testrail
 pytest tests
 ```

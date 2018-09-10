@@ -98,7 +98,7 @@ def testrail_client_init(request):
 
 
 def get_testrail_case_id(node):
-    testrail_marker = node.get_marker("testrail")
+    testrail_marker = node.get_closest_marker("testrail")
     if not testrail_marker:
         return None
     if len(testrail_marker.args) == 0:

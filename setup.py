@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pytest-testrail-reporter',
-    version='1.8',
+    version='1.9',
     packages=find_packages(exclude=['tests']),
     entry_points={
         'pytest11': [
